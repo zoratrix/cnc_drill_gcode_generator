@@ -1,134 +1,102 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
+from tkinter import filedialog, messagebox
+from datetime import datetime
 
 class CNCDrillApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("CNC G-code Generator")
+        self.root.title("Генератор G-кода для сверлильного станка")
 
-        # Параметры реле и координат
-        self.relay_pin = tk.StringVar(value="M3")  # Команда для включения реле
-        self.x_max = tk.DoubleVar(value=200.0)
-        self.x_min = tk.DoubleVar(value=0.0)
-        self.z_max = tk.DoubleVar(value=100.0)
-        self.z_min = tk.DoubleVar(value=0.0)
-        self.z_safe = tk.DoubleVar(value=15.0)  # Высота безопасного запуска
-        self.safe_height = tk.DoubleVar(value=30.0)  # Безопасная высота для перемещений между отверстиями
+        # Параметры по умолчанию
+        self.x_first = 0
+        self.x_spacing = 10
+        self.num_holes = 5
+        self.z_safe = 15
+        self.safe_height = 30
+        self.drill_depth = -5
+        self.z_max = 25
+        self.relay_pin = "M3"
 
-        # Ввод параметров
+        # Элементы интерфейса
         self.create_widgets()
 
     def create_widgets(self):
-        tk.Label(self.root, text="Количество отверстий").grid(row=0, column=0)
-        self.num_holes = tk.Entry(self.root)
-        self.num_holes.grid(row=0, column=1)
+        tk.Label(self.root, text="X-координата первого отверстия:").grid(row=0, column=0, sticky="w")
+        self.x_first_entry = tk.Entry(self.root)
+        self.x_first_entry.insert(0, str(self.x_first))
+        self.x_first_entry.grid(row=0, column=1)
 
-        tk.Label(self.root, text="Координата X первого отверстия").grid(row=1, column=0)
-        self.x_start = tk.Entry(self.root)
-        self.x_start.grid(row=1, column=1)
+        tk.Label(self.root, text="Расстояние между отверстиями:").grid(row=1, column=0, sticky="w")
+        self.x_spacing_entry = tk.Entry(self.root)
+        self.x_spacing_entry.insert(0, str(self.x_spacing))
+        self.x_spacing_entry.grid(row=1, column=1)
 
-        tk.Label(self.root, text="Расстояние между отверстиями").grid(row=2, column=0)
-        self.hole_spacing = tk.Entry(self.root)
-        self.hole_spacing.grid(row=2, column=1)
+        tk.Label(self.root, text="Количество отверстий:").grid(row=2, column=0, sticky="w")
+        self.num_holes_entry = tk.Entry(self.root)
+        self.num_holes_entry.insert(0, str(self.num_holes))
+        self.num_holes_entry.grid(row=2, column=1)
 
-        tk.Label(self.root, text="Глубина сверления (Za)").grid(row=3, column=0)
-        self.z_depth = tk.Entry(self.root)
-        self.z_depth.grid(row=3, column=1)
+        tk.Label(self.root, text="Безопасная высота для переходов (Z safe):").grid(row=3, column=0, sticky="w")
+        self.safe_height_entry = tk.Entry(self.root)
+        self.safe_height_entry.insert(0, str(self.safe_height))
+        self.safe_height_entry.grid(row=3, column=1)
 
-        tk.Label(self.root, text="Xmax").grid(row=4, column=0)
-        self.x_max_entry = tk.Entry(self.root, textvariable=self.x_max)
-        self.x_max_entry.grid(row=4, column=1)
+        tk.Label(self.root, text="Глубина сверления (отрицательное значение):").grid(row=4, column=0, sticky="w")
+        self.drill_depth_entry = tk.Entry(self.root)
+        self.drill_depth_entry.insert(0, str(self.drill_depth))
+        self.drill_depth_entry.grid(row=4, column=1)
 
-        tk.Label(self.root, text="Xmin").grid(row=5, column=0)
-        self.x_min_entry = tk.Entry(self.root, textvariable=self.x_min)
-        self.x_min_entry.grid(row=5, column=1)
+        tk.Label(self.root, text="Максимальная высота по Z:").grid(row=5, column=0, sticky="w")
+        self.z_max_entry = tk.Entry(self.root)
+        self.z_max_entry.insert(0, str(self.z_max))
+        self.z_max_entry.grid(row=5, column=1)
 
-        tk.Label(self.root, text="Zmax").grid(row=6, column=0)
-        self.z_max_entry = tk.Entry(self.root, textvariable=self.z_max)
-        self.z_max_entry.grid(row=6, column=1)
-
-        tk.Label(self.root, text="Zmin").grid(row=7, column=0)
-        self.z_min_entry = tk.Entry(self.root, textvariable=self.z_min)
-        self.z_min_entry.grid(row=7, column=1)
-
-        tk.Label(self.root, text="Реле для шпинделя").grid(row=8, column=0)
-        self.relay_entry = tk.Entry(self.root, textvariable=self.relay_pin)
-        self.relay_entry.grid(row=8, column=1)
-
-        tk.Label(self.root, text="Высота безопасного запуска Zsafe").grid(row=9, column=0)
-        self.z_safe_entry = tk.Entry(self.root, textvariable=self.z_safe)
-        self.z_safe_entry.grid(row=9, column=1)
-
-        tk.Label(self.root, text="Безопасная высота для перемещений (Safe Height)").grid(row=10, column=0)
-        self.safe_height_entry = tk.Entry(self.root, textvariable=self.safe_height)
-        self.safe_height_entry.grid(row=10, column=1)
-
-        # Предварительный просмотр и генерация G-кода
-        self.preview_button = tk.Button(self.root, text="Предпросмотр G-кода", command=self.preview_gcode)
-        self.preview_button.grid(row=11, column=0, columnspan=2)
-
-        self.generate_button = tk.Button(self.root, text="Сохранить G-код", command=self.save_gcode)
-        self.generate_button.grid(row=12, column=0, columnspan=2)
-
-        # Текстовое поле для предпросмотра
-        self.gcode_preview = scrolledtext.ScrolledText(self.root, width=50, height=15)
-        self.gcode_preview.grid(row=13, column=0, columnspan=2)
+        tk.Button(self.root, text="Сгенерировать G-код", command=self.generate_gcode).grid(row=6, column=0, columnspan=2)
 
     def generate_gcode(self):
         try:
-            # Получаем данные от пользователя
-            num_holes = int(self.num_holes.get())
-            x_start = float(self.x_start.get())
-            hole_spacing = float(self.hole_spacing.get())
-            z_depth = float(self.z_depth.get())
-
-            # Генерация G-кода
-            gcode = []
-            gcode.append(f"G21 ; Устанавливаем мм")
-            gcode.append(f"G90 ; Абсолютное программирование")
-            gcode.append(f"G0 Z{self.z_max.get()} ; Поднимаем шпиндель в верхнее положение для начала")
-
-            for i in range(num_holes):
-                x_pos = x_start + i * hole_spacing
-                if x_pos > self.x_max.get() or x_pos < self.x_min.get():
-                    messagebox.showerror("Ошибка", "Координата X выходит за пределы!")
-                    return
-                gcode.append(f"G0 X{x_pos} Z{self.safe_height.get()} ; Перемещаемся к отверстию {i + 1}")
-                gcode.append(f"G0 Z{self.z_safe.get()} ; Опускаемся на безопасную высоту перед запуском сверления")
-                gcode.append(f"{self.relay_pin.get()} ; Включаем реле для шпинделя")
-                gcode.append(f"G4 P0.5 ; Задержка 0.5 секунд для включения шпинделя")
-                gcode.append(f"G0 Z0 ; Опускаемся к поверхности детали (Z0)")
-                gcode.append(f"G1 Z{-z_depth} F100 ; Опускаемся для сверления на глубину Za")
-                gcode.append(f"G4 P1 ; Задержка 1 секунда для завершения сверления")
-                gcode.append(f"G0 Z{self.z_safe.get()} ; Поднимаемся на безопасную высоту после сверления")
-                gcode.append(f"M5 ; Выключаем реле для шпинделя")
-                gcode.append(f"G0 Z{self.safe_height.get()} ; Поднимаемся на безопасную высоту для перемещения")
-
-            gcode.append(f"G0 X0 Z{self.z_max.get()} ; Возвращаемся в начальное положение")
-            gcode.append("M30 ; Завершение программы")
-
-            return "\n".join(gcode)
-
+            self.x_first = float(self.x_first_entry.get())
+            self.x_spacing = float(self.x_spacing_entry.get())
+            self.num_holes = int(self.num_holes_entry.get())
+            self.safe_height = float(self.safe_height_entry.get())
+            self.drill_depth = float(self.drill_depth_entry.get())
+            self.z_max = float(self.z_max_entry.get())
         except ValueError:
-            messagebox.showerror("Ошибка", "Пожалуйста, введите корректные значения!")
-            return ""
+            messagebox.showerror("Ошибка ввода", "Пожалуйста, введите корректные числовые значения.")
+            return
 
-    def preview_gcode(self):
-        # Отображаем G-код в текстовом поле предпросмотра
-        gcode = self.generate_gcode()
-        if gcode:
-            self.gcode_preview.delete(1.0, tk.END)
-            self.gcode_preview.insert(tk.END, gcode)
+        gcode_lines = [
+            "G21 ; Установить единицы измерения в миллиметрах",
+            "G17 ; Выбрать плоскость XY",
+            f"G90 ; Абсолютное позиционирование",
+            f"G0 Z{self.z_max} ; Переместиться на максимальную высоту Z",
+        ]
 
-    def save_gcode(self):
-        # Сохранение G-кода в файл
-        gcode = self.generate_gcode()
-        if gcode:
-            file_path = filedialog.asksaveasfilename(defaultextension=".gcode", filetypes=[("G-code files", "*.gcode")])
-            if file_path:
-                with open(file_path, "w") as file:
-                    file.write(gcode)
-                messagebox.showinfo("Успех", "G-код успешно сохранен!")
+        for i in range(self.num_holes):
+            x = self.x_first + i * self.x_spacing
+            gcode_lines.append(f"G0 X{x:.2f} Z{self.safe_height:.2f} ; Переместиться к отверстию {i + 1} безопасно")
+            gcode_lines.append(f"{self.relay_pin} S1 ; Включить шпиндель")
+            gcode_lines.append(f"G1 Z0.00 F100 ; Медленно подойти к поверхности детали")
+            gcode_lines.append(f"G1 Z{self.drill_depth:.2f} F50 ; Просверлить отверстие на заданную глубину")
+            gcode_lines.append(f"G0 Z{self.safe_height:.2f} ; Подняться на безопасную высоту")
+            gcode_lines.append(f"{self.relay_pin} S0 ; Выключить шпиндель")
+
+        gcode_lines.append(f"G0 Z{self.z_max} ; Переместиться на максимальную высоту Z")
+        gcode_lines.append(f"G0 X0 ; Вернуться в X0")
+
+        # Генерация имени файла на основе текущей даты и времени
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        gcode_filename = f"gcode_{timestamp}.gcode"
+        txt_filename = f"gcode_{timestamp}.txt"
+
+        # Сохранение G-кода в файлы
+        with open(gcode_filename, "w") as gcode_file:
+            gcode_file.write("\n".join(gcode_lines))
+
+        with open(txt_filename, "w") as txt_file:
+            txt_file.write("\n".join(gcode_lines))
+
+        messagebox.showinfo("Успех", f"Файлы сохранены:\n{gcode_filename}\n{txt_filename}")
 
 if __name__ == "__main__":
     root = tk.Tk()

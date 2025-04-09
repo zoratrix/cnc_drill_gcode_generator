@@ -114,9 +114,9 @@ class CNCDrillApp:
             return
 
         # Генерация имени файла
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        gcode_filename = f"gcode_{timestamp}.gcode"
-        txt_filename = f"gcode_{timestamp}.txt"
+        timestamp = datetime.now().strftime("%y%m%d%H%M")
+        gcode_filename = f"{timestamp}.gcode"
+        txt_filename = f"{timestamp}.txt"
 
         if self.save_folder:
             gcode_filepath = f"{self.save_folder}/{gcode_filename}"

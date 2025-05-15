@@ -17,6 +17,9 @@ class CNCDrillApp:
         self.z_max = 25
         self.relay_pin = "M3"
         self.save_folder = ""
+        self.move_speed = 1000  # Скорость перемещения по X
+        self.z_approach_speed = 100  # Скорость опускания Z
+        self.drill_speed = 50  # Скорость сверления
 
         # Элементы интерфейса
         self.create_widgets()
@@ -52,15 +55,31 @@ class CNCDrillApp:
         self.z_max_entry.insert(0, str(self.z_max))
         self.z_max_entry.grid(row=5, column=1)
 
-        tk.Button(self.root, text="Выбрать папку для сохранения", command=self.choose_folder).grid(row=6, column=0, columnspan=2)
-        tk.Button(self.root, text="Сгенерировать G-код", command=self.generate_gcode).grid(row=7, column=0, columnspan=2)
+        # Добавленные поля для скоростей
+        tk.Label(self.root, text="Скорость перемещения (X, мм/мин):").grid(row=6, column=0, sticky="w")
+        self.move_speed_entry = tk.Entry(self.root)
+        self.move_speed_entry.insert(0, str(self.move_speed))
+        self.move_speed_entry.grid(row=6, column=1)
+
+        tk.Label(self.root, text="Скорость опускания (Z, мм/мин):").grid(row=7, column=0, sticky="w")
+        self.z_approach_speed_entry = tk.Entry(self.root)
+        self.z_approach_speed_entry.insert(0, str(self.z_approach_speed))
+        self.z_approach_speed_entry.grid(row=7, column=1)
+
+        tk.Label(self.root, text="Скорость сверления (Z, мм/мин):").grid(row=8, column=0, sticky="w")
+        self.drill_speed_entry = tk.Entry(self.root)
+        self.drill_speed_entry.insert(0, str(self.drill_speed))
+        self.drill_speed_entry.grid(row=8, column=1)
+
+        tk.Button(self.root, text="Выбрать папку для сохранения", command=self.choose_folder).grid(row=9, column=0, columnspan=2)
+        tk.Button(self.root, text="Сгенерировать G-код", command=self.generate_gcode).grid(row=10, column=0, columnspan=2)
 
         # Поле для редактирования G-кода
-        tk.Label(self.root, text="Предпросмотр и редактирование G-кода:").grid(row=8, column=0, columnspan=2, sticky="w")
+        tk.Label(self.root, text="Предпросмотр и редактирование G-кода:").grid(row=11, column=0, columnspan=2, sticky="w")
         self.gcode_text = tk.Text(self.root, height=15, width=60)
-        self.gcode_text.grid(row=9, column=0, columnspan=2)
+        self.gcode_text.grid(row=12, column=0, columnspan=2)
 
-        tk.Button(self.root, text="Сохранить G-код", command=self.save_gcode).grid(row=10, column=0, columnspan=2)
+        tk.Button(self.root, text="Сохранить G-код", command=self.save_gcode).grid(row=13, column=0, columnspan=2)
 
     def choose_folder(self):
         self.save_folder = filedialog.askdirectory()
@@ -75,6 +94,9 @@ class CNCDrillApp:
             self.z_safe = float(self.safe_height_entry.get())
             self.drill_depth = float(self.drill_depth_entry.get())
             self.z_max = float(self.z_max_entry.get())
+            self.move_speed = float(self.move_speed_entry.get())
+            self.z_approach_speed = float(self.z_approach_speed_entry.get())
+            self.drill_speed = float(self.drill_speed_entry.get())
 
             if self.z_safe >= self.z_max:
                 messagebox.showerror("Ошибка", "Zsafe должна быть меньше Zmax!")
@@ -93,15 +115,15 @@ class CNCDrillApp:
 
         for i in range(self.num_holes):
             x = self.x_first + i * self.x_spacing
-            gcode_lines.append(f"G0 X{x:.2f} Z{self.z_safe:.2f} ; Переместиться к отверстию {i + 1} безопасно")
+            gcode_lines.append(f"G0 X{x:.2f} Z{self.z_safe:.2f} F{self.move_speed:.0f} ; Переместиться к отверстию {i + 1} безопасно")
             gcode_lines.append(f"{self.relay_pin} S1 ; Включить шпиндель")
-            gcode_lines.append(f"G1 Z0.00 F100 ; Медленно подойти к поверхности детали")
-            gcode_lines.append(f"G1 Z{self.drill_depth:.2f} F50 ; Просверлить отверстие на заданную глубину")
-            gcode_lines.append(f"G0 Z{self.z_safe:.2f} ; Подняться на безопасную высоту")
+            gcode_lines.append(f"G1 Z0.00 F{self.z_approach_speed:.0f} ; Медленно подойти к поверхности детали")
+            gcode_lines.append(f"G1 Z{self.drill_depth:.2f} F{self.drill_speed:.0f} ; Просверлить отверстие на заданную глубину")
+            gcode_lines.append(f"G0 Z{self.z_safe:.2f} F{self.move_speed:.0f} ; Подняться на безопасную высоту")
             gcode_lines.append(f"{self.relay_pin} S0 ; Выключить шпиндель")
 
-        gcode_lines.append(f"G0 Z{self.z_max} ; Переместиться на максимальную высоту Z")
-        gcode_lines.append(f"G0 X0 ; Вернуться в X0")
+        gcode_lines.append(f"G0 Z{self.z_max} F{self.move_speed:.0f} ; Переместиться на максимальную высоту Z")
+        gcode_lines.append(f"G0 X0 F{self.move_speed:.0f} ; Вернуться в X0")
 
         # Отображение G-кода в текстовом виджете
         self.gcode_text.delete("1.0", tk.END)

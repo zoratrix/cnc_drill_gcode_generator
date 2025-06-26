@@ -110,21 +110,21 @@ class CNCDrillApp:
             "G21 ; Установить единицы измерения в миллиметрах",
             "G17 ; Выбрать плоскость XY",
             f"G90 ; Абсолютное позиционирование",
-            f"G0 Z{self.z_max} ; Переместиться на максимальную высоту Z",
+            f"G1 Z{self.z_max} F{self.z_approach_speed:.0f}; Переместиться на максимальную высоту Z",
         ]
 
         for i in range(self.num_holes):
             x = self.x_first + i * self.x_spacing
-            gcode_lines.append(f"G0 Z{self.z_safe:.2f} F{self.z_approach_speed:.0f} ; Опустить Z на безопасную высоту")
-            gcode_lines.append(f"G0 X{x:.2f} F{self.move_speed:.0f} ; Переместиться к отверстию {i + 1}")
+            gcode_lines.append(f"G1 Z{self.z_safe:.2f} F{self.z_approach_speed:.0f} ; Опустить Z на безопасную высоту")
+            gcode_lines.append(f"G1 X{x:.2f} F{self.move_speed:.0f} ; Переместиться к отверстию {i + 1}")
             gcode_lines.append(f"{self.relay_pin} S1 ; Включить шпиндель")
             gcode_lines.append(f"G1 Z0.00 F{self.z_approach_speed:.0f} ; Медленно подойти к поверхности детали")
             gcode_lines.append(f"G1 Z{self.drill_depth:.2f} F{self.drill_speed:.0f} ; Просверлить отверстие на заданную глубину")
             gcode_lines.append(f"G1 Z{self.z_safe:.2f} F{self.z_approach_speed:.0f} ; Подняться на безопасную высоту")
             gcode_lines.append(f"{self.relay_pin} S0 ; Выключить шпиндель")
 
-        gcode_lines.append(f"G0 Z{self.z_max} F{self.z_approach_speed:.0f} ; Переместиться на максимальную высоту Z")
-        gcode_lines.append(f"G0 X0 F{self.move_speed:.0f} ; Вернуться в X0")
+        gcode_lines.append(f"G1 Z{self.z_max} F{self.z_approach_speed:.0f} ; Переместиться на максимальную высоту Z")
+        gcode_lines.append(f"G1 X0 F{self.move_speed:.0f} ; Вернуться в X0")
 
 
         # Отображение G-кода в текстовом виджете
